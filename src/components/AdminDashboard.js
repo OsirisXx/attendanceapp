@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useSessionContext, useSupabaseClient } from '@supabase/auth-helpers-react';
 import { useNavigate } from 'react-router-dom';
 import QRScanner from './QRScanner';
@@ -18,11 +18,7 @@ function AdminDashboard() {
     }
   };
 
-  React.useEffect(() => {
-    fetchEvents();
-  }, [fetchEvents]);
-
-  const fetchEvents = async () => {
+  const fetchEvents = useCallback(async () => {
     const { data, error } = await supabase
       .from('events')
       .select('*')
@@ -33,7 +29,11 @@ function AdminDashboard() {
     } else {
       setEvents(data);
     }
-  };
+  }, [supabase]);
+
+  React.useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
 
   const createEvent = async (e) => {
     e.preventDefault();
