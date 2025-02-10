@@ -51,7 +51,7 @@ function Login() {
         return navigate('/');
       }
     },
-    [navigate]
+    [navigate, supabase]
   );
 
   React.useEffect(() => {
@@ -77,7 +77,7 @@ function Login() {
     );
 
     return () => subscription.unsubscribe();
-  }, [handleUserSession]);
+  }, [handleUserSession, supabase.auth]);
 
   return (
     <div className="login-container">

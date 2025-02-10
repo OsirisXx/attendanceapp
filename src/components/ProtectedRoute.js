@@ -11,7 +11,7 @@ const ProtectedRoute = ({ children, role }) => {
   React.useEffect(() => {
     async function getUserRole() {
       if (session?.user?.id) {
-        const { data, error } = await supabase
+        const { data } = await supabase
           .from('profiles')
           .select('role')
           .eq('id', session.user.id)

@@ -20,7 +20,7 @@ function AdminDashboard() {
 
   React.useEffect(() => {
     fetchEvents();
-  }, []);
+  }, [fetchEvents]);
 
   const fetchEvents = async () => {
     const { data, error } = await supabase

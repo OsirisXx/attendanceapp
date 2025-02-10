@@ -67,7 +67,7 @@ const startScanner = async () => {
         html5QrCode.clear().catch(err => console.error(err));
       }
     };
-  }, []);
+  }, [startScanner]);
 
   return (
     <div className="qr-scanner">

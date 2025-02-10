@@ -16,10 +16,6 @@ function StudentDashboard() {
     }
   };
 
-  React.useEffect(() => {
-    fetchAttendanceHistory();
-  }, []);
-
   const fetchAttendanceHistory = async () => {
     const { data, error } = await supabase
       .from('attendance_records')
@@ -39,6 +35,10 @@ function StudentDashboard() {
       setAttendanceHistory(data);
     }
   };
+
+  React.useEffect(() => {
+    fetchAttendanceHistory();
+  }, [fetchAttendanceHistory]);
 
   return (
     <div className="student-dashboard">
