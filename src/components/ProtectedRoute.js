@@ -28,7 +28,11 @@ const ProtectedRoute = ({ children, role }) => {
     getUserRole();
   }, [session, supabase]);
 
-  if (isLoading || isCheckingRole) {
+  if (!session) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (isCheckingRole) {
     return <div>Loading...</div>;
   }
 

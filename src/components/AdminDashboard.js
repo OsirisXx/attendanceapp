@@ -1,7 +1,8 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useSessionContext, useSupabaseClient } from '@supabase/auth-helpers-react';
 import { useNavigate } from 'react-router-dom';
 import QRScanner from './QRScanner';
+import './AdminDashboard.css';
 
 function AdminDashboard() {
   const { session } = useSessionContext();
@@ -10,11 +11,25 @@ function AdminDashboard() {
   const [events, setEvents] = React.useState([]);
   const [selectedEvent, setSelectedEvent] = React.useState(null);
   const [showScanner, setShowScanner] = React.useState(false);
+  const [showAttendees, setShowAttendees] = React.useState(false);
+  const [attendeesList, setAttendeesList] = React.useState([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (!error) {
-      navigate('/');
+    try {
+      setIsLoading(true);
+      await supabase.auth.signOut({
+        scope: 'global',
+        shouldClearSession: true
+      });
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch (error) {
+      console.error('Logout error:', error);
+      console.error(error);
+      alert('Error during logout. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -88,57 +103,153 @@ function AdminDashboard() {
     a.click();
   };
 
+  const fetchAttendees = async (eventId) => {
+    setIsLoading(true);
+    const { data, error } = await supabase
+      .from('attendance_records')
+      .select(`
+        id,
+        status,
+        timestamp,
+        user_id,
+        profiles!attendance_records_user_id_fkey (
+          email,
+          first_name,
+          last_name,
+          school_id
+        )
+      `)
+      .eq('event_id', eventId);
+    
+    if (!error) {
+      setAttendeesList(data);
+      setShowAttendees(true);
+    } else {
+      console.error('Error fetching attendees:', error);
+      alert('Failed to fetch attendees. Please try again.');
+    }
+    setIsLoading(false);
+  };
+
   return (
     <div className="admin-dashboard">
-      <h1>Admin Dashboard</h1>
-      <div className="dashboard-header">
-        <p>Welcome, {session?.user?.email}</p>
-        <button onClick={handleLogout} className="logout-button">
-          Logout
-        </button>
-      </div>
-      
-      <div className="create-event">
-        <h2>Create New Event</h2>
-        <form onSubmit={createEvent}>
-          <input name="title" type="text" placeholder="Event Title" required />
-          <input name="description" type="text" placeholder="Description" />
-          <input name="date" type="datetime-local" required />
-          <button type="submit">Create Event</button>
-        </form>
-      </div>
+      <div className="admin-content">
+        <h1 className="admin-title">Admin Dashboard</h1>
+        <div className="admin-header">
+          <p className="welcome-text">Welcome, {session?.user?.email}</p>
+          <button 
+            onClick={handleLogout} 
+            className="logout-button" 
+            disabled={isLoading}
+          >
+            {isLoading ? 'Logging out...' : 'Logout'}
+          </button>
+        </div>
+        
+        <div className="create-event">
+          <h2>Create New Event</h2>
+          <form onSubmit={createEvent}>
+            <input 
+              name="title" 
+              type="text" 
+              placeholder="Event Title" 
+              required 
+            />
+            <input 
+              name="description" 
+              type="text" 
+              placeholder="Description" 
+            />
+            <input 
+              name="date" 
+              type="datetime-local" 
+              required 
+            />
+            <button type="submit">Create Event</button>
+          </form>
+        </div>
 
-      <div className="events-list">
-        <h2>Events</h2>
-        {events.map((event) => (
-          <div key={event.id} className="event-card">
-            <h3>{event.title}</h3>
-            <p>{event.description}</p>
-            <p>Date: {new Date(event.date).toLocaleString()}</p>
-            <button onClick={() => {
-              setSelectedEvent(event);
-              setShowScanner(true);
-            }}>Scan Attendance</button>
-            <button onClick={() => exportToCSV(event.id)}>
-              Export to CSV
-            </button>
+        <div className="events-list">
+          <h2>Events</h2>
+          <div className="events-grid">
+            {events.map((event) => (
+              <div key={event.id} className="event-card">
+                <h3>{event.title}</h3>
+                <p>{event.description}</p>
+                <p>
+                  <strong>Date:</strong>{' '}
+                  {new Date(event.date).toLocaleString()}
+                </p>
+                <div className="event-actions">
+                  <button 
+                    className="btn btn-scan"
+                    onClick={() => {
+                      setSelectedEvent(event);
+                      setShowScanner(true);
+                    }}
+                  >
+                    Scan Attendance
+                  </button>
+                  <button 
+                    className="btn btn-list"
+                    onClick={() => fetchAttendees(event.id)}
+                  >
+                    List of Attendees
+                  </button>
+                  <button 
+                    className="btn btn-export"
+                    onClick={() => exportToCSV(event.id)}
+                  >
+                    Export to CSV
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
       </div>
 
       {showScanner && selectedEvent && (
-        <div className="scanner-modal" style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          zIndex: 1000
-        }}>
-          <QRScanner 
-            eventId={selectedEvent.id}
-            onScan={() => { fetchEvents(); setShowScanner(false); }}
-          />
+        <div className="scanner-modal">
+          <div className="scanner-container">
+            <button 
+              className="close-scanner"
+              onClick={() => setShowScanner(false)}
+            >
+              ×
+            </button>
+            <QRScanner 
+              eventId={selectedEvent.id}
+              onScan={() => { fetchEvents(); setShowScanner(false); }}
+            />
+          </div>
+        </div>
+      )}
+
+      {showAttendees && (
+        <div className="attendees-modal">
+          <div className="attendees-container">
+            <button 
+              className="close-attendees"
+              onClick={() => setShowAttendees(false)}
+            >
+              ×
+            </button>
+            <h2>List of Attendees</h2>
+            <div className="attendees-list">
+              {attendeesList.map((record) => (
+                <div key={record.id} className="attendee-item" style={{ margin: '10px', padding: '15px', border: '1px solid #ddd', borderRadius: '5px' }}>
+                  <div className="attendee-info">
+                    <h3>{record.profiles.first_name} {record.profiles.last_name}</h3>
+                    <p>Email: {record.profiles.email}</p>
+                    <p>School ID: {record.profiles.school_id}</p>
+                    <p>Time: {new Date(record.timestamp).toLocaleString()}</p>
+                    <p>Status: {record.status}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>
