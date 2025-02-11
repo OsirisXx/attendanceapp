@@ -105,28 +105,53 @@ function AdminDashboard() {
 
   const fetchAttendees = async (eventId) => {
     setIsLoading(true);
-    const { data, error } = await supabase
-      .from('attendance_records')
-      .select(`
-        id,
-        status,
-        timestamp,
-        user_id,
-        profiles!attendance_records_user_id_fkey (
-          email,
-          first_name,
-          last_name,
-          school_id
-        )
-      `)
-      .eq('event_id', eventId);
-    
-    if (!error) {
-      setAttendeesList(data);
+    try {
+      console.log('Fetching attendees for event:', eventId);
+      
+      const { data, error } = await supabase
+        .from('attendance_records')
+        .select(`
+          id,
+          status,
+          timestamp,
+          user_id,
+          event_id
+        `)
+        .eq('event_id', eventId)
+        .order('timestamp', { ascending: false });
+
+      if (error) throw error;
+
+      // Fetch user profiles separately to ensure we get the data
+      const userIds = data.map(record => record.user_id);
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, email, first_name, last_name, school_id')
+        .in('id', userIds);
+
+      if (profilesError) throw profilesError;
+
+      // Create a map of user profiles
+      const profilesMap = profilesData.reduce((acc, profile) => {
+        acc[profile.id] = profile;
+        return acc;
+      }, {});
+
+      // Combine attendance records with profile data
+      const attendeesWithProfiles = data.map(record => ({
+        ...record,
+        profiles: profilesMap[record.user_id] || {
+          email: 'Unknown',
+          first_name: 'Unknown',
+          last_name: 'User'
+        }
+      }));
+
+      setAttendeesList(attendeesWithProfiles);
       setShowAttendees(true);
-    } else {
+    } catch (error) {
       console.error('Error fetching attendees:', error);
-      alert('Failed to fetch attendees. Please try again.');
+      alert(`Error fetching attendees: ${error.message}`);
     }
     setIsLoading(false);
   };
