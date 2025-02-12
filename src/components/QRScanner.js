@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Html5QrcodeScanner } from "html5-qrcode";
+import React, { useState, useCallback, useRef } from 'react';
+import { Html5Qrcode } from "html5-qrcode";
 import { useSupabaseClient } from '@supabase/auth-helpers-react';
 import './QRScanner.css';
 
@@ -7,15 +7,17 @@ const QRScanner = ({ eventId, onScan, onClose }) => {
   const [scanError, setError] = useState(null);
   const supabase = useSupabaseClient();
   const [scanData, setScanData] = useState(null);
-  const [scanner, setScanner] = useState(null);
+  const scannerRef = useRef(null);
 
   const handleScan = useCallback(async (data) => {
+    if (!scannerRef.current) return;
     if (data) {
+      if (scannerRef.current?.isScanning) await scannerRef.current.stop();
       setError(null);
       try {
         // Stop the scanner before processing
-        if (scanner) {
-          await scanner.clear();
+        if (scannerRef.current) {
+          await scannerRef.current.stop();
         }
 
         const userData = JSON.parse(data.text);
@@ -24,7 +26,7 @@ const QRScanner = ({ eventId, onScan, onClose }) => {
         setError('Error recording attendance: ' + err.message);
       }
     }
-  }, [scanner]);
+  }, []);
 
   const confirmAttendance = async () => {
     try {
@@ -45,46 +47,48 @@ const QRScanner = ({ eventId, onScan, onClose }) => {
     }
   };
 
-  useEffect(() => {
-    const startScanner = async () => {
-      try {
-        if (scanner) {
-          await scanner.clear();
-        }
+  const initializeScanner = useCallback(async () => {
+    try {
+      if (scannerRef.current) {
+        await scannerRef.current.stop();
+        scannerRef.current = null;
+      }
+      const scanner = new Html5Qrcode("reader");
+      const devices = await Html5Qrcode.getCameras();
+      
+      if (!devices || devices.length === 0) {
+        throw new Error('No cameras found');
+      }
 
-        const newScanner = new Html5QrcodeScanner("reader", {
+      const cameraId = devices[0].id;
+      scannerRef.current = scanner;
+
+      await scanner.start(
+        cameraId,
+        {
           fps: 10,
           qrbox: { width: 250, height: 250 },
-          aspectRatio: 1
-        });
+        },
+        (decodedText) => handleScan({ text: decodedText }),
+        () => {}
+      );
+    } catch (err) {
+      console.error('Scanner error:', err);
+      setError(err.message || 'Failed to start scanner');
+    }
+  }, [handleScan]);
 
-        newScanner.render(
-          (result) => {
-            handleScan({ text: result });
-          },
-          (err) => {
-            console.error(err);
-            setError(err.message);
-          }
-        );
-
-        setScanner(newScanner);
-      } catch (err) {
-        console.error('Scanner error:', err);
-        setError(err.message);
-      }
-    };
-
-    startScanner();
-  }, [handleScan, scanner]);
-
-  useEffect(() => {
+  React.useEffect(() => {
+    if (document.getElementById('reader')) {
+      initializeScanner();
+    }
     return () => {
-      if (scanner) {
-        scanner.clear().catch(err => console.error(err));
+      if (scannerRef.current) {
+        scannerRef.current.stop()
+          .catch(err => console.error('Cleanup error:', err));
       }
     };
-  }, [scanner]);
+  }, [initializeScanner]);
 
   return (
     <div className="qr-scanner">
@@ -116,7 +120,13 @@ const QRScanner = ({ eventId, onScan, onClose }) => {
       )}
 
       <button className="close-scanner" onClick={() => {
-        if (scanner) scanner.clear();
+        if (scannerRef.current?.isScanning) {
+          try {
+            scannerRef.current.stop();
+          } catch (err) {
+            console.log('Error stopping scanner:', err);
+          }
+        }
         onClose && onClose();
       }}>
         <span>×</span>
