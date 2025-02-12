@@ -12,6 +12,7 @@ const QRScanner = ({ eventId, onScan, onClose }) => {
   const handleScan = useCallback(async (data) => {
     if (!scannerRef.current) return;
     if (data) {
+      console.log('Scanned data:', data); // Debug log
       if (scannerRef.current?.isScanning) await scannerRef.current.stop();
       setError(null);
       try {
@@ -21,9 +22,12 @@ const QRScanner = ({ eventId, onScan, onClose }) => {
         }
 
         const userData = JSON.parse(data.text);
+        if (!userData || !userData.id) {
+          throw new Error('Invalid QR code format - missing required data');
+        }
         setScanData(userData);
       } catch (err) {
-        setError('Error recording attendance: ' + err.message);
+        setError('Error reading QR code: ' + (err.message || 'Invalid QR code format'));
       }
     }
   }, []);
@@ -39,11 +43,15 @@ const QRScanner = ({ eventId, onScan, onClose }) => {
           timestamp: new Date().toISOString()
         });
 
-      if (attendanceError) throw attendanceError;
+      if (attendanceError) {
+        console.error('Supabase error:', attendanceError); // Debug log
+        throw new Error(attendanceError.message || 'Failed to record attendance');
+      }
+
       onScan && onScan(scanData);
       setScanData(null);
     } catch (err) {
-      setError('Error recording attendance: ' + err.message);
+      setError('Error recording attendance: ' + (err.message || 'Unknown error occurred'));
     }
   };
 
