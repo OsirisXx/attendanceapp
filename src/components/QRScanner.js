@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Html5QrcodeScanner } from "html5-qrcode";
 import { useSupabaseClient } from '@supabase/auth-helpers-react';
 import './QRScanner.css';
 
 const QRScanner = ({ eventId, onScan, onClose }) => {
-  const [scannerError, setError] = useState(null);
+  const [error, setError] = useState(null);
   const supabase = useSupabaseClient();
   const [scanData, setScanData] = useState(null);
   const [scanner, setScanner] = useState(null);
 
-  const handleScan = async (data) => {
+  const handleScan = useCallback(async (data) => {
     if (data) {
       setError(null);
       try {
@@ -24,7 +24,7 @@ const QRScanner = ({ eventId, onScan, onClose }) => {
         setError('Error recording attendance: ' + err.message);
       }
     }
-  };
+  }, [scanner]);
 
   const confirmAttendance = async () => {
     try {
@@ -76,7 +76,7 @@ const QRScanner = ({ eventId, onScan, onClose }) => {
     };
 
     startScanner();
-  }, []);
+  }, [handleScan]);
 
   useEffect(() => {
     return () => {
