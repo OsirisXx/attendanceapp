@@ -17,29 +17,29 @@ function StudentDashboard() {
     }
   };
 
-  const fetchAttendanceHistory = async () => {
-    const { data, error } = await supabase
-      .from('attendance_records')
-      .select(`
-        *,
-        events (
-          title,
-          date
-        )
-      `)
-      .eq('user_id', session.user.id)
-      .order('timestamp', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching attendance:', error);
-    } else {
-      setAttendanceHistory(data);
-    }
-  };
-
   React.useEffect(() => {
+    const fetchAttendanceHistory = async () => {
+      const { data, error } = await supabase
+        .from('attendance_records')
+        .select(`
+          *,
+          events (
+            title,
+            date
+          )
+        `)
+        .eq('user_id', session.user.id)
+        .order('timestamp', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching attendance:', error);
+      } else {
+        setAttendanceHistory(data);
+      }
+    };
+
     fetchAttendanceHistory();
-  }, [fetchAttendanceHistory]);
+  }, [supabase, session.user.id]);
 
   return (
     <div className="student-dashboard">

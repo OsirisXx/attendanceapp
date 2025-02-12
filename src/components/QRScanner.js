@@ -1,49 +1,66 @@
 import React, { useState, useEffect } from 'react';
 import { Html5QrcodeScanner } from "html5-qrcode";
 import { useSupabaseClient } from '@supabase/auth-helpers-react';
+import './QRScanner.css';
 
-let html5QrCode;
+let scanner;
 const QRScanner = ({ eventId, onScan, onClose }) => {
   const [error, setError] = useState(null);
   const [hasPermission, setHasPermission] = useState(null);
   const supabase = useSupabaseClient();
+  const [scanData, setScanData] = useState(null);
 
   const handleScan = async (data) => {
     if (data) {
       setError(null);
       try {
-        const userData = JSON.parse(data.text);
-        
-        const { error: attendanceError } = await supabase
-          .from('attendance_records')
-          .upsert({
-            event_id: eventId,
-            user_id: userData.id,
-            status: 'present',
-            timestamp: new Date().toISOString()
+        // Stop the scanner before processing
+        if (window.scanner) {
+          window.scanner.clear().catch(err => {
+            console.error('Error stopping scanner:', err);
           });
+        }
 
-        if (attendanceError) throw attendanceError;
-        
-        onScan && onScan(userData);
+        const userData = JSON.parse(data.text);
+        setScanData(userData);
       } catch (err) {
         setError('Error recording attendance: ' + err.message);
       }
     }
   };
 
-const startScanner = async () => {
+  const confirmAttendance = async () => {
+    try {
+      const { error: attendanceError } = await supabase
+        .from('attendance_records')
+        .upsert({
+          event_id: eventId,
+          user_id: scanData.id,
+          status: 'present',
+          timestamp: new Date().toISOString()
+        });
+
+      if (attendanceError) throw attendanceError;
+      onScan && onScan(scanData);
+      setScanData(null);
+    } catch (err) {
+      setError('Error recording attendance: ' + err.message);
+    }
+  };
+
+  const startScanner = async () => {
     try {
       const scanner = new Html5QrcodeScanner("reader", {
         fps: 10,
-        qrbox: { width: 250, height: 250 }
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1
       });
 
       scanner.render(success, error);
 
       function success(result) {
         handleScan({ text: result });
-        scanner.clear();
+        window.scanner.clear();
       }
 
       function error(err) {
@@ -51,7 +68,7 @@ const startScanner = async () => {
       }
 
       setHasPermission(true);
-      html5QrCode = scanner;
+      window.scanner = scanner;
 
     } catch (err) {
       console.error('Scanner error:', err);
@@ -63,8 +80,8 @@ const startScanner = async () => {
   useEffect(() => {
     startScanner();
     return () => {
-      if (html5QrCode) {
-        html5QrCode.clear().catch(err => console.error(err));
+      if (window.scanner) {
+        window.scanner.clear().catch(err => console.error(err));
       }
     };
   }, [startScanner]);
@@ -72,22 +89,32 @@ const startScanner = async () => {
   return (
     <div className="qr-scanner">
       <div id="reader"></div>
-      <button onClick={() => onClose && onClose()} style={{position: 'absolute', top: 10, right: 10}}>Close</button>
-      {hasPermission === false ? (
-        <div className="scanner-error">
-          <p>{error}</p>
-          <button onClick={() => {
-            setHasPermission(null);
-            startScanner();
-          }}>
-            Retry Camera Access
-          </button>
+      
+      {scanData && (
+        <div className="confirmation-dialog">
+          <h3>Confirm Attendance</h3>
+          <div className="user-details">
+            <p><strong>Email:</strong> {scanData.email}</p>
+            <p><strong>ID:</strong> {scanData.id}</p>
+            <p><strong>Timestamp:</strong> {new Date().toLocaleString()}</p>
+          </div>
+          <div className="confirmation-buttons">
+            <button onClick={confirmAttendance} className="confirm-btn">
+              Confirm
+            </button>
+            <button onClick={() => setScanData(null)} className="cancel-btn">
+              Cancel
+            </button>
+          </div>
         </div>
-      ) : hasPermission === null ? (
-        <div className="scanner-loading">
-          <p>Requesting camera access...</p>
-        </div>
-      ) : null}
+      )}
+
+      <button className="close-scanner" onClick={() => {
+        if (window.scanner) window.scanner.clear();
+        onClose && onClose();
+      }}>
+        <span>×</span>
+      </button>
     </div>
   );
 };

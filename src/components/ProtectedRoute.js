@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { useSessionContext, useSupabaseClient } from '@supabase/auth-helpers-react';
 
 const ProtectedRoute = ({ children, role }) => {
-  const { session, isLoading } = useSessionContext();
+  const { session } = useSessionContext();
   const supabase = useSupabaseClient();
   const [userRole, setUserRole] = React.useState(null);
   const [isCheckingRole, setIsCheckingRole] = React.useState(true);

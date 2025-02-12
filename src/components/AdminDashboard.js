@@ -1,18 +1,17 @@
 import React, { useCallback, useState } from 'react';
 import { useSessionContext, useSupabaseClient } from '@supabase/auth-helpers-react';
-import { useNavigate } from 'react-router-dom';
 import QRScanner from './QRScanner';
 import './AdminDashboard.css';
 
 function AdminDashboard() {
   const { session } = useSessionContext();
   const supabase = useSupabaseClient();
-  const navigate = useNavigate();
   const [events, setEvents] = React.useState([]);
   const [selectedEvent, setSelectedEvent] = React.useState(null);
   const [showScanner, setShowScanner] = React.useState(false);
   const [showAttendees, setShowAttendees] = React.useState(false);
   const [attendeesList, setAttendeesList] = React.useState([]);
+  const [selectedYearFilter, setSelectedYearFilter] = useState('All Years');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleLogout = async () => {
@@ -72,35 +71,69 @@ function AdminDashboard() {
   };
 
   const exportToCSV = async (eventId) => {
+    setIsLoading(true);
     const { data, error } = await supabase
       .from('attendance_records')
       .select(`
-        *,
-        users:user_id (email),
-        events:event_id (title, date)
+        id,
+        status,
+        timestamp,
+        user_id,
+        event_id,
+        events:event_id (title)
       `)
       .eq('event_id', eventId);
 
     if (error) {
       console.error('Error fetching attendance:', error);
+      setIsLoading(false);
       return;
     }
 
+    // Fetch user profiles for each attendance record
+    const userIds = data.map(record => record.user_id);
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, email, first_name, last_name, school_id, year_level')
+      .in('id', userIds);
+
+    if (profilesError) {
+      console.error('Error fetching profiles:', profilesError);
+      setIsLoading(false);
+      return;
+    }
+
+    // Create a map of user profiles
+    const profilesMap = profiles.reduce((acc, profile) => {
+      acc[profile.id] = profile;
+      return acc;
+    }, {});
+
     const csvContent = [
-      ['Email', 'Status', 'Timestamp'],
-      ...data.map(record => [
-        record.users.email,
+      ['First Name', 'Last Name', 'Email', 'School ID', 'Year Level', 'Status', 'Timestamp'],
+      ...data.map(record => {
+        const profile = profilesMap[record.user_id] || {};
+        return [
+        profile.first_name || 'N/A',
+        profile.last_name || 'N/A',
+        profile.email || 'N/A',
+        profile.school_id || 'N/A',
+        profile.year_level || 'N/A',
         record.status,
         new Date(record.timestamp).toLocaleString()
-      ])
+      ]})
     ].map(row => row.join(',')).join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `attendance-${eventId}.csv`;
+    const eventTitle = data[0]?.events?.title || 'event';
+    const date = new Date().toISOString().split('T')[0];
+    a.download = `${eventTitle}-attendance-${date}.csv`;
     a.click();
+    window.URL.revokeObjectURL(url);
+    setIsLoading(false);
   };
 
   const fetchAttendees = async (eventId) => {
@@ -126,7 +159,7 @@ function AdminDashboard() {
       const userIds = data.map(record => record.user_id);
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, email, first_name, last_name, school_id')
+        .select('id, email, first_name, last_name, school_id, year_level')
         .in('id', userIds);
 
       if (profilesError) throw profilesError;
@@ -143,7 +176,8 @@ function AdminDashboard() {
         profiles: profilesMap[record.user_id] || {
           email: 'Unknown',
           first_name: 'Unknown',
-          last_name: 'User'
+          last_name: 'User',
+          year_level: 'Not specified'
         }
       }));
 
@@ -239,13 +273,17 @@ function AdminDashboard() {
           <div className="scanner-container">
             <button 
               className="close-scanner"
-              onClick={() => setShowScanner(false)}
+              onClick={() => {
+                if (window.scanner) window.scanner.clear();
+                setShowScanner(false);
+              }}
             >
               ×
             </button>
             <QRScanner 
               eventId={selectedEvent.id}
               onScan={() => { fetchEvents(); setShowScanner(false); }}
+              onClose={() => setShowScanner(false)}
             />
           </div>
         </div>
@@ -261,13 +299,30 @@ function AdminDashboard() {
               ×
             </button>
             <h2>List of Attendees</h2>
+            <div className="year-filter" style={{ margin: '10px 0' }}>
+              <select 
+                value={selectedYearFilter}
+                onChange={(e) => setSelectedYearFilter(e.target.value)}
+                style={{ padding: '5px', marginLeft: '10px' }}
+              >
+                <option value="All Years">All Years</option>
+                <option value="1st Year">1st Year</option>
+                <option value="2nd Year">2nd Year</option>
+                <option value="3rd Year">3rd Year</option>
+                <option value="4th Year">4th Year</option>
+              </select>
+            </div>
             <div className="attendees-list">
-              {attendeesList.map((record) => (
+              {attendeesList
+                .filter(record => selectedYearFilter === 'All Years' || 
+                  record.profiles.year_level === selectedYearFilter)
+                .map((record) => (
                 <div key={record.id} className="attendee-item" style={{ margin: '10px', padding: '15px', border: '1px solid #ddd', borderRadius: '5px' }}>
                   <div className="attendee-info">
                     <h3>{record.profiles.first_name} {record.profiles.last_name}</h3>
                     <p>Email: {record.profiles.email}</p>
                     <p>School ID: {record.profiles.school_id}</p>
+                    <p>Year Level: {record.profiles.year_level || 'Not specified'}</p>
                     <p>Time: {new Date(record.timestamp).toLocaleString()}</p>
                     <p>Status: {record.status}</p>
                   </div>
