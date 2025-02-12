@@ -12,25 +12,43 @@ const QRScanner = ({ eventId, onScan, onClose }) => {
   const handleScan = useCallback(async (data) => {
     if (!scannerRef.current) return;
     if (data) {
-      console.log('Scanned data:', data); // Debug log
-      if (scannerRef.current?.isScanning) await scannerRef.current.stop();
-      setError(null);
       try {
-        // Stop the scanner before processing
-        if (scannerRef.current) {
-          await scannerRef.current.stop();
+        console.log('Scanned data:', data); // Debug log
+        
+        let userData;
+        try {
+          // Try parsing the data directly first
+          userData = JSON.parse(data);
+        } catch {
+          // If direct parsing fails, try parsing the text property
+          userData = JSON.parse(data.text || data);
         }
 
-        const userData = JSON.parse(data.text);
+        console.log('Parsed user data:', userData); // Debug log
+
         if (!userData || !userData.id) {
           throw new Error('Invalid QR code format - missing required data');
         }
+        
+        setError(null);
         setScanData(userData);
       } catch (err) {
         setError('Error reading QR code: ' + (err.message || 'Invalid QR code format'));
       }
     }
   }, []);
+
+  // Cleanup function to properly stop scanner
+  const cleanupScanner = async () => {
+    try {
+      if (scannerRef.current) {
+        await scannerRef.current.stop();
+        scannerRef.current = null;
+      }
+    } catch (err) {
+      console.error('Error stopping scanner:', err);
+    }
+  };
 
   const confirmAttendance = async () => {
     try {
@@ -104,10 +122,7 @@ const QRScanner = ({ eventId, onScan, onClose }) => {
       initializeScanner();
     }
     return () => {
-      if (scannerRef.current) {
-        scannerRef.current.stop()
-          .catch(err => console.error('Cleanup error:', err));
-      }
+      cleanupScanner();
     };
   }, [initializeScanner]);
 
@@ -141,14 +156,13 @@ const QRScanner = ({ eventId, onScan, onClose }) => {
       )}
 
       <button className="close-scanner" onClick={() => {
-        if (scannerRef.current?.isScanning) {
-          try {
-            scannerRef.current.stop();
-          } catch (err) {
-            console.log('Error stopping scanner:', err);
-          }
-        }
-        onClose && onClose();
+        cleanupScanner().then(() => {
+          // Clear any existing data
+          setScanData(null);
+          setError(null);
+          // Only call onClose after cleanup is complete
+          onClose && onClose();
+        });
       }}>
         <span>×</span>
       </button>
