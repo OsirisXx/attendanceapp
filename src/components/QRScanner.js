@@ -3,22 +3,19 @@ import { Html5QrcodeScanner } from "html5-qrcode";
 import { useSupabaseClient } from '@supabase/auth-helpers-react';
 import './QRScanner.css';
 
-let scanner;
 const QRScanner = ({ eventId, onScan, onClose }) => {
-  const [error, setError] = useState(null);
-  const [hasPermission, setHasPermission] = useState(null);
+  const [scannerError, setError] = useState(null);
   const supabase = useSupabaseClient();
   const [scanData, setScanData] = useState(null);
+  const [scanner, setScanner] = useState(null);
 
   const handleScan = async (data) => {
     if (data) {
       setError(null);
       try {
         // Stop the scanner before processing
-        if (window.scanner) {
-          window.scanner.clear().catch(err => {
-            console.error('Error stopping scanner:', err);
-          });
+        if (scanner) {
+          await scanner.clear();
         }
 
         const userData = JSON.parse(data.text);
@@ -48,43 +45,46 @@ const QRScanner = ({ eventId, onScan, onClose }) => {
     }
   };
 
-  const startScanner = async () => {
-    try {
-      const scanner = new Html5QrcodeScanner("reader", {
-        fps: 10,
-        qrbox: { width: 250, height: 250 },
-        aspectRatio: 1
-      });
-
-      scanner.render(success, error);
-
-      function success(result) {
-        handleScan({ text: result });
-        window.scanner.clear();
-      }
-
-      function error(err) {
-        console.error(err);
-      }
-
-      setHasPermission(true);
-      window.scanner = scanner;
-
-    } catch (err) {
-      console.error('Scanner error:', err);
-      setError(err.message);
-      setHasPermission(false);
-    }
-  };
-
   useEffect(() => {
-    startScanner();
-    return () => {
-      if (window.scanner) {
-        window.scanner.clear().catch(err => console.error(err));
+    const startScanner = async () => {
+      try {
+        if (scanner) {
+          await scanner.clear();
+        }
+
+        const newScanner = new Html5QrcodeScanner("reader", {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1
+        });
+
+        newScanner.render(
+          (result) => {
+            handleScan({ text: result });
+          },
+          (err) => {
+            console.error(err);
+            setError(err.message);
+          }
+        );
+
+        setScanner(newScanner);
+      } catch (err) {
+        console.error('Scanner error:', err);
+        setError(err.message);
       }
     };
-  }, [startScanner]);
+
+    startScanner();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (scanner) {
+        scanner.clear().catch(err => console.error(err));
+      }
+    };
+  }, [scanner]);
 
   return (
     <div className="qr-scanner">
@@ -110,7 +110,7 @@ const QRScanner = ({ eventId, onScan, onClose }) => {
       )}
 
       <button className="close-scanner" onClick={() => {
-        if (window.scanner) window.scanner.clear();
+        if (scanner) scanner.clear();
         onClose && onClose();
       }}>
         <span>×</span>

@@ -77,7 +77,7 @@ function Login() {
       async (event, currentSession) => {
         if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
           setIsLoading(false);
-          localStorage.clear();
+          localStorage.clear(); 
           sessionStorage.clear();
           navigate('/');
           return;
@@ -95,7 +95,7 @@ function Login() {
     );
 
     return () => subscription.unsubscribe();
-  }, [handleUserSession, supabase.auth]);
+  }, [handleUserSession, supabase.auth, navigate]);
 
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
