@@ -59,8 +59,21 @@ const QRScanner = ({ eventId, onScan, onClose }) => {
       if (!devices || devices.length === 0) {
         throw new Error('No cameras found');
       }
+      
+      // Try to find back camera
+      let cameraId = devices[0].id;
+      
+      // On mobile devices, try to use the back camera
+      if (devices.length > 1) {
+        const backCamera = devices.find(device => 
+          device.label.toLowerCase().includes('back') ||
+          device.label.toLowerCase().includes('rear')
+        );
+        if (backCamera) {
+          cameraId = backCamera.id;
+        }
+      }
 
-      const cameraId = devices[0].id;
       scannerRef.current = scanner;
 
       await scanner.start(
