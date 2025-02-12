@@ -4,7 +4,7 @@ import { useSupabaseClient } from '@supabase/auth-helpers-react';
 import './QRScanner.css';
 
 const QRScanner = ({ eventId, onScan, onClose }) => {
-  const [error, setError] = useState(null);
+  const [scanError, setError] = useState(null);
   const supabase = useSupabaseClient();
   const [scanData, setScanData] = useState(null);
   const [scanner, setScanner] = useState(null);
@@ -76,7 +76,7 @@ const QRScanner = ({ eventId, onScan, onClose }) => {
     };
 
     startScanner();
-  }, [handleScan]);
+  }, [handleScan, scanner]);
 
   useEffect(() => {
     return () => {
@@ -89,6 +89,12 @@ const QRScanner = ({ eventId, onScan, onClose }) => {
   return (
     <div className="qr-scanner">
       <div id="reader"></div>
+      
+      {scanError && (
+        <div className="error-message">
+          {scanError}
+        </div>
+      )}
       
       {scanData && (
         <div className="confirmation-dialog">
