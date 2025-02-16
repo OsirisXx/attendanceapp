@@ -12,31 +12,52 @@ const QRScanner = ({ eventId, onScan, onClose }) => {
   const handleScan = useCallback(async (data) => {
     if (!scannerRef.current) return;
     if (data) {
+      const scannedText = data;
+      console.log('Scanned text:', scannedText);
+
       try {
-        console.log('Scanned data:', data); // Debug log
-        
-        let userData;
-        try {
-          // Try parsing the data directly first
-          userData = JSON.parse(data);
-        } catch {
-          // If direct parsing fails, try parsing the text property
-          userData = JSON.parse(data.text || data);
+        let userData = null;
+
+        if (/^\d+$/.test(scannedText)) {
+          // Handle barcode scanning
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('school_id', scannedText)
+            .single();
+
+          if (profileError) {
+            throw new Error(`Student ID ${scannedText} not found`);
+          }
+          userData = profileData;
+        } else {
+          // Check if the scanned text is an email
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('email', scannedText)
+            .single();
+
+          if (profileError) {
+            throw new Error(`User with email ${scannedText} not found`);
+          }
+          userData = profileData;
         }
 
-        console.log('Parsed user data:', userData); // Debug log
+        console.log('Final user data:', userData);
 
-        if (!userData || !userData.id) {
-          throw new Error('Invalid QR code format - missing required data');
+        if (!userData || (!userData.id && !userData.school_id)) {
+          throw new Error('Invalid scan format - missing required data');
         }
-        
+
         setError(null);
         setScanData(userData);
       } catch (err) {
-        setError('Error reading QR code: ' + (err.message || 'Invalid QR code format'));
+        console.error('Scan error:', err);
+        setError('Scan error: ' + (err.message || 'Invalid format'));
       }
     }
-  }, []);
+  }, [supabase]);
 
   // Cleanup function to properly stop scanner
   const cleanupScanner = async () => {
@@ -54,7 +75,7 @@ const QRScanner = ({ eventId, onScan, onClose }) => {
     try {
       const { error: attendanceError } = await supabase
         .from('attendance_records')
-        .upsert({
+        .insert({
           event_id: eventId,
           user_id: scanData.id,
           status: 'present',
@@ -62,11 +83,16 @@ const QRScanner = ({ eventId, onScan, onClose }) => {
         });
 
       if (attendanceError) {
-        console.error('Supabase error:', attendanceError); // Debug log
+        // Check if error is due to duplicate entry
+        if (attendanceError.code === '23505') {
+          setError('Attendance already recorded for this event');
+          return;
+        }
+        console.error('Supabase error:', attendanceError);
         throw new Error(attendanceError.message || 'Failed to record attendance');
       }
 
-      onScan && onScan(scanData);
+      onScan && onScan({ ...scanData });
       setScanData(null);
     } catch (err) {
       setError('Error recording attendance: ' + (err.message || 'Unknown error occurred'));
@@ -81,17 +107,17 @@ const QRScanner = ({ eventId, onScan, onClose }) => {
       }
       const scanner = new Html5Qrcode("reader");
       const devices = await Html5Qrcode.getCameras();
-      
+
       if (!devices || devices.length === 0) {
         throw new Error('No cameras found');
       }
-      
+
       // Try to find back camera
       let cameraId = devices[0].id;
-      
+
       // On mobile devices, try to use the back camera
       if (devices.length > 1) {
-        const backCamera = devices.find(device => 
+        const backCamera = devices.find(device =>
           device.label.toLowerCase().includes('back') ||
           device.label.toLowerCase().includes('rear')
         );
@@ -107,12 +133,18 @@ const QRScanner = ({ eventId, onScan, onClose }) => {
         {
           fps: 10,
           qrbox: { width: 250, height: 250 },
+          aspectRatio: 1,
+          formatsToSupport: [
+            0, // QR Code
+            7, // Code 128 (barcode)
+            3  // EAN-13
+          ],
         },
-        (decodedText) => handleScan({ text: decodedText }),
-        () => {}
+        (decodedText) => handleScan(decodedText),
+        (errorMessage) => { /* Ignore errors */ }
       );
     } catch (err) {
-      console.error('Scanner error:', err);
+      console.warn('Scanner initialization:', err);
       setError(err.message || 'Failed to start scanner');
     }
   }, [handleScan]);
@@ -129,19 +161,24 @@ const QRScanner = ({ eventId, onScan, onClose }) => {
   return (
     <div className="qr-scanner">
       <div id="reader"></div>
-      
+      <p className="scanner-instruction">Position the QR code or barcode within the frame</p>
+
       {scanError && (
         <div className="error-message">
           {scanError}
         </div>
       )}
-      
+
       {scanData && (
         <div className="confirmation-dialog">
           <h3>Confirm Attendance</h3>
           <div className="user-details">
+            <p><strong>Name:</strong> {`${scanData.first_name} ${
+              scanData.middle_name ? scanData.middle_name + ' ' : ''
+            }${scanData.last_name}`}</p>
+            <p><strong>Student ID:</strong> {scanData.school_id || 'N/A'}</p>
+            <p><strong>Year Level:</strong> {scanData.year_level || 'N/A'}</p>
             <p><strong>Email:</strong> {scanData.email}</p>
-            <p><strong>ID:</strong> {scanData.id}</p>
             <p><strong>Timestamp:</strong> {new Date().toLocaleString()}</p>
           </div>
           <div className="confirmation-buttons">

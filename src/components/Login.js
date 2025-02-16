@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Login.css';
+import Modal from './Modal';
 import { useSessionContext, useSupabaseClient } from '@supabase/auth-helpers-react';
 
 function Login() {
@@ -19,6 +20,12 @@ function Login() {
   });
   const [error, setError] = React.useState(null);
   const [isLoading, setIsLoading] = React.useState(false);
+  const [modal, setModal] = React.useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'info'
+  });
 
   const handleUserSession = React.useCallback(
     async (currentSession) => {
@@ -133,9 +140,21 @@ function Login() {
           password: formData.password,
         });
 
-        if (signUpError) throw signUpError;
+        if (signUpError) {
+          if (signUpError.message.includes('already registered')) {
+            setModal({
+              isOpen: true,
+              title: 'Registration Error',
+              message: 'This email is already registered. Please try logging in instead.',
+              type: 'error'
+            });
+          } else {
+            throw signUpError;
+          }
+          return;
+        }
 
-        // Create profile with additional information
+        // Create the user profile after successful registration
         const { error: profileError } = await supabase
           .from('profiles')
           .insert({
@@ -149,8 +168,28 @@ function Login() {
             role: 'student'
           });
 
-        if (profileError) throw profileError;
+        if (profileError) {
+          throw profileError;
+        }
 
+        // Show success modal
+        setModal({
+          isOpen: true,
+          title: 'Registration Almost Complete!',
+          message: 'Please check your email to confirm your registration.',
+          type: 'success'
+        });
+        
+        // Clear form
+        setFormData({
+          email: '',
+          password: '',
+          firstName: '',
+          middleName: '',
+          lastName: '',
+          yearLevel: '',
+          schoolId: '',
+        });
       } catch (error) {
         setError(error.error_description || error.message);
       }
@@ -225,10 +264,9 @@ function Login() {
                   className="form-control"
                   type="text"
                   name="middleName"
-                  placeholder="Middle Name"
+                  placeholder="Middle Name | Middle Initial"
                   value={formData.middleName}
                   onChange={handleInputChange}
-                  required
                 />
               </div>
               <div className="form-group">
@@ -283,6 +321,16 @@ function Login() {
           {isRegistering ? 'Already have an account? Login' : 'Need to register? Sign up'}
         </button>
       </div>
+      <Modal
+        isOpen={modal.isOpen}
+        onClose={() => {
+          setModal({ ...modal, isOpen: false });
+          window.location.reload();
+        }}
+        title={modal.title}
+        message={modal.message}
+        type={modal.type}
+      />
     </div>
   );
 }

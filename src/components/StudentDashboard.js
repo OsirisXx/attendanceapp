@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useSessionContext, useSupabaseClient } from '@supabase/auth-helpers-react';
 import { useNavigate } from 'react-router-dom';
 import './StudentDashboard.css';
@@ -7,6 +7,8 @@ import UserQRCode from './QRCode';
 function StudentDashboard() {
   const { session } = useSessionContext();
   const supabase = useSupabaseClient();
+  const [allEvents, setAllEvents] = React.useState([]);
+  const [userProfile, setUserProfile] = useState(null);
   const navigate = useNavigate();
   const [attendanceHistory, setAttendanceHistory] = React.useState([]);
 
@@ -18,23 +20,64 @@ function StudentDashboard() {
   };
 
   React.useEffect(() => {
+    const fetchUserProfile = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+
+      if (!error && data) {
+        setUserProfile(data);
+      }
+    };
+
+    fetchUserProfile();
+  }, [session.user.id, supabase]);
+
+  React.useEffect(() => {
     const fetchAttendanceHistory = async () => {
       const { data, error } = await supabase
-        .from('attendance_records')
-        .select(`
-          *,
-          events (
-            title,
-            date
-          )
-        `)
-        .eq('user_id', session.user.id)
-        .order('timestamp', { ascending: false });
+        .from('events')
+        .select('*')
+        .order('date', { ascending: false });
 
       if (error) {
-        console.error('Error fetching attendance:', error);
+        console.error('Error fetching events:', error);
+        return;
+      }
+
+      const { data: attendanceData, error: attendanceError } = await supabase
+        .from('attendance_records')
+        .select('*, events!inner(*)')
+        .eq('user_id', session.user.id);
+
+      if (attendanceError) {
+        console.error('Error fetching attendance:', attendanceError);
+        return;
+      }
+
+      // Create a map of attended events
+      const attendedEvents = new Map(
+        attendanceData.map(record => [record.event_id, record])
+      );
+
+      // Combine all events with attendance status
+      const combinedHistory = data.map(event => {
+        const attendanceRecord = attendedEvents.get(event.id);
+        return {
+          id: event.id,
+          events: event,
+          status: attendanceRecord ? attendanceRecord.status : 'Absent',
+          timestamp: attendanceRecord ? attendanceRecord.timestamp : event.date,
+        };
+      });
+
+      if (data) {
+        setAllEvents(data);
+        setAttendanceHistory(combinedHistory);
       } else {
-        setAttendanceHistory(data);
+        setAttendanceHistory([]);
       }
     };
 
@@ -46,7 +89,13 @@ function StudentDashboard() {
       <div className="dashboard-content">
         <h1 className="dashboard-title">Student Dashboard</h1>
         <div className="dashboard-header">
-          <p className="welcome-text">Welcome, {session?.user?.email}</p>
+          <p className="welcome-text">
+            Welcome, {userProfile ? (
+              `${userProfile.first_name} ${userProfile.middle_name || ''} ${userProfile.last_name}`
+            ) : (
+              session?.user?.email
+            )}
+          </p>
           <button onClick={handleLogout} className="logout-button">
             Logout
           </button>
@@ -69,7 +118,7 @@ function StudentDashboard() {
                 <p>
                   <strong>Time:</strong> {new Date(record.timestamp).toLocaleTimeString()}
                 </p>
-                <span className={`status-badge status-${record.status.toLowerCase()}`}>
+                <span className={`status-badge status-${record.status.toLowerCase().replace(' ', '-')}`}>
                   {record.status}
                 </span>
               </div>

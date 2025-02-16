@@ -1,14 +1,10 @@
-// UserQRCode.js
 import React from 'react';
 import { QRCodeSVG as QRCode } from 'qrcode.react';
 import wizardLogo from './images/wizard-logo.png';
 
 const UserQRCode = ({ userId, userEmail }) => {
-  const qrData = JSON.stringify({
-    id: userId,
-    email: userEmail,
-    timestamp: new Date().toISOString(),
-  });
+  // Just use the email as the QR code data
+  const qrData = userEmail;
 
   return (
     <div className="qr-code-container" style={{ position: 'relative', display: 'inline-block' }}>
