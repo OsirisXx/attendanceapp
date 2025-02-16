@@ -7,7 +7,6 @@ import UserQRCode from './QRCode';
 function StudentDashboard() {
   const { session } = useSessionContext();
   const supabase = useSupabaseClient();
-  const [allEvents, setAllEvents] = React.useState([]);
   const [userProfile, setUserProfile] = useState(null);
   const navigate = useNavigate();
   const [attendanceHistory, setAttendanceHistory] = React.useState([]);
@@ -74,7 +73,6 @@ function StudentDashboard() {
       });
 
       if (data) {
-        setAllEvents(data);
         setAttendanceHistory(combinedHistory);
       } else {
         setAttendanceHistory([]);
