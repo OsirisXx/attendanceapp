@@ -49,7 +49,7 @@ function StudentDashboard() {
       const { data: attendanceData, error: attendanceError } = await supabase
         .from('attendance_records')
         .select('*, events!inner(*)')
-        .eq('user_id', session.user.id);
+        .order('timestamp', { ascending: false });
 
       if (attendanceError) {
         console.error('Error fetching attendance:', attendanceError);
@@ -61,22 +61,28 @@ function StudentDashboard() {
         attendanceData.map(record => [record.event_id, record])
       );
 
+      // Count attendees for each event
+      const attendeeCounts = attendanceData.reduce((acc, record) => {
+        acc[record.event_id] = (acc[record.event_id] || 0) + 1;
+        return acc;
+      }, {});
+
       // Combine all events with attendance status
       const combinedHistory = data.map(event => {
         const attendanceRecord = attendedEvents.get(event.id);
+        const userAttendanceRecord = attendanceData.find(record => 
+          record.event_id === event.id && record.user_id === session.user.id
+        );
         return {
           id: event.id,
           events: event,
-          status: attendanceRecord ? attendanceRecord.status : 'Absent',
+          attendeeCount: attendeeCounts[event.id] || 0,
+          status: userAttendanceRecord ? userAttendanceRecord.status : 'Absent',
           timestamp: attendanceRecord ? attendanceRecord.timestamp : event.date,
         };
       });
 
-      if (data) {
-        setAttendanceHistory(combinedHistory);
-      } else {
-        setAttendanceHistory([]);
-      }
+      setAttendanceHistory(combinedHistory);
     };
 
     fetchAttendanceHistory();
@@ -109,7 +115,11 @@ function StudentDashboard() {
           <div className="attendance-grid">
             {attendanceHistory.map((record) => (
               <div key={record.id} className="attendance-card">
+                <div className="attendee-count">
+                  <span>{record.attendeeCount} Attendees</span>
+                </div>
                 <h3>{record.events.title}</h3>
+                <p className="event-description">{record.events.description}</p>
                 <p>
                   <strong>Date:</strong> {new Date(record.events.date).toLocaleDateString()}
                 </p>

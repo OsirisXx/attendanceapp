@@ -64,34 +64,6 @@
   background: #cc0000;
 }
 
-.flash-toggle {
-  position: absolute;
-  top: 20px;
-  left: 20px;
-  width: 40px;
-  height: 40px;
-  background: rgba(0, 0, 0, 0.6);
-  border: none;
-  border-radius: 50%;
-  z-index: 1001;
-  color: white;
-  font-size: 20px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
-}
-
-.flash-toggle.flash-on {
-  background: #ffd700;
-  color: #000;
-}
-
-.flash-toggle:hover {
-  transform: scale(1.1);
-}
-
 .confirmation-dialog {
   position: absolute;
   top: 50%;

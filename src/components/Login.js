@@ -135,23 +135,40 @@ function Login() {
       }
 
       try {
-        const { data, error: signUpError } = await supabase.auth.signUp({
-          email: formData.email,
-          password: formData.password,
-        });
-
-        if (signUpError) {
-          if (signUpError.message.includes('already registered')) {
+        // First check if email or student ID already exists
+        const { data: existingUser, error: checkError } = await supabase
+          .from('profiles')
+          .select('email, school_id')
+          .or(`email.eq.${formData.email},school_id.eq.${formData.schoolId}`)
+          .single();
+        if (!checkError && existingUser) {
+          // User already exists
+          if (existingUser.email === formData.email) {
             setModal({
               isOpen: true,
               title: 'Registration Error',
               message: 'This email is already registered. Please try logging in instead.',
               type: 'error'
             });
-          } else {
-            throw signUpError;
+          } else if (existingUser.school_id === formData.schoolId) {
+            setModal({
+              isOpen: true,
+              title: 'Registration Error',
+              message: 'This Student ID is already registered. Please contact support if this is an error.',
+              type: 'error'
+            });
           }
           return;
+        }
+
+        // If no existing user, proceed with registration
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+        });
+
+        if (signUpError) {
+          throw signUpError;
         }
 
         // Create the user profile after successful registration
