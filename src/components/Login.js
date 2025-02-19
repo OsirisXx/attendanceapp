@@ -20,6 +20,7 @@ function Login() {
   });
   const [error, setError] = React.useState(null);
   const [isLoading, setIsLoading] = React.useState(false);
+  const [isFlipping, setIsFlipping] = React.useState(false);
   const [modal, setModal] = React.useState({
     isOpen: false,
     title: '',
@@ -232,9 +233,17 @@ function Login() {
     setIsLoading(false);
   };
 
+  const handleFormSwitch = () => {
+    setIsFlipping(true);
+    setTimeout(() => {
+      setIsRegistering(!isRegistering);
+      setIsFlipping(false);
+    }, 400);
+  };
+
   return (
     <div className="login-page">
-      <div className="login-container">
+      <div className={`login-container ${isFlipping ? 'flipping' : ''}`}>
         <h1 className="login-title">CIT Attendance System</h1>
         {isLoading && <p className="loading-spinner">Loading...</p>}
         {session?.user && <p>Logged in as: {session.user.email}</p>}
@@ -332,7 +341,7 @@ function Login() {
         </form>
         
         <button 
-          onClick={() => setIsRegistering(!isRegistering)}
+          onClick={handleFormSwitch}
           className="btn btn-secondary"
         >
           {isRegistering ? 'Already have an account? Login' : 'Need to register? Sign up'}

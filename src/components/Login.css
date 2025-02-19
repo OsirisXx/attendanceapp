@@ -13,7 +13,6 @@
   overflow-y: auto;
   background-repeat: no-repeat;
   background-attachment: fixed;
-  
 }
 
 .login-container {
@@ -28,6 +27,15 @@
   width: 85%;
   position: relative;
   top: 0;
+  transform-style: preserve-3d;
+  transition: transform 0.6s;
+  perspective: 1000px;
+}
+
+.login-container.flipping {
+  transform: rotateY(180deg);
+  transform-style: preserve-3d;
+  backface-visibility: visible;
 }
 
 .login-title {
@@ -104,6 +112,11 @@ select.form-control {
   background-repeat: no-repeat;
   background-position: right 1rem center;
   background-size: 1em;
+}
+
+/* Ensure content doesn't appear reversed after flip */
+.login-container.flipping * {
+  backface-visibility: hidden;
 }
 
 @media (max-width: 480px) {

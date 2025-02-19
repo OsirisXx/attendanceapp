@@ -10,11 +10,25 @@ function StudentDashboard() {
   const [userProfile, setUserProfile] = useState(null);
   const navigate = useNavigate();
   const [attendanceHistory, setAttendanceHistory] = React.useState([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleLogout = async () => {
+    setIsLoading(true);
     const { error } = await supabase.auth.signOut();
-    if (!error) {
+    try {
+      if (!error) {
+        localStorage.clear();
+        sessionStorage.clear();
+        navigate('/');
+      } else {
+        console.error('Logout error:', error);
+        navigate('/');
+      }
+    } catch (err) {
+      console.error('Logout failed:', err);
       navigate('/');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -100,7 +114,7 @@ function StudentDashboard() {
               session?.user?.email
             )}
           </p>
-          <button onClick={handleLogout} className="logout-button">
+          <button onClick={handleLogout} className="logout-button" disabled={isLoading}>
             Logout
           </button>
         </div>
