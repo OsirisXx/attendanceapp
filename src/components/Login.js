@@ -114,7 +114,7 @@ function Login() {
   };
 
   const validateSchoolId = (id) => {
-    return /^\d{11}$/.test(id);
+    return /^\d{10,11}$/.test(id);
   };
 
   const handleSubmit = async (e) => {
@@ -130,7 +130,7 @@ function Login() {
       }
 
       if (!validateSchoolId(formData.schoolId)) {
-        setError('School ID must be 11 digits');
+        setError('School ID must be 10-11 digits');
         setIsLoading(false);
         return;
       }
@@ -326,7 +326,7 @@ function Login() {
                   className="form-control"
                   type="text"
                   name="schoolId"
-                  placeholder="School ID (11 digits)"
+                  placeholder="School ID (10-11 digits)"
                   value={formData.schoolId}
                   onChange={handleInputChange}
                   required
