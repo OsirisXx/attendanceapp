@@ -74,6 +74,18 @@
   border-bottom: 2px solid #f1f2f6;
 }
 
+.event-status {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: #4a90e2;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 15px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
 .attendance-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -92,6 +104,19 @@
   font-size: 0.8rem;
   font-weight: 500;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.attendee-count.finished {
+  background: #636e72;
+}
+
+.event-status.finished {
+  background: #e7f6fb;
+}
+
+.event-status.on-going {
+  background: #4a90e2;
+  color: white;
 }
 
 .attendance-card {

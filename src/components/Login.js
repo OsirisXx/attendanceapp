@@ -31,6 +31,7 @@ function Login() {
   const handleUserSession = React.useCallback(
     async (currentSession) => {
       try {
+        if (!currentSession) return;
         // First check if profile exists
         const { data: profile, error } = await supabase
           .from('profiles')
@@ -53,19 +54,26 @@ function Login() {
               email: currentSession.user.email
             });
 
-          if (insertError) {
-            throw insertError;
-          }
+          if (insertError) throw insertError;
           console.log('Redirecting to /student after profile creation');
           navigate('/student');
-          return;
         } else {
           console.log('Profile found:', profile);
-          navigate(profile.role === 'admin' ? '/admin' : '/student');
+          console.log('User role:', profile.role);
+          switch(profile.role) {
+            case 'superadmin':
+              navigate('/superadmin');
+              break;
+            case 'admin':
+              navigate('/admin');
+              break;
+            default:
+              navigate('/student');
+          }
         }
       } catch (error) {
         setError('Error in handleUserSession: ' + error.message);
-        return navigate('/');
+        navigate('/');
       }
     },
     [navigate, supabase]

@@ -129,7 +129,7 @@ function StudentDashboard() {
           <div className="attendance-grid">
             {attendanceHistory.map((record) => (
               <div key={record.id} className="attendance-card">
-                <div className="attendee-count">
+                <div className={`attendee-count ${record.events.status}`}>
                   <span>{record.attendeeCount} Attendees</span>
                 </div>
                 <h3>{record.events.title}</h3>
@@ -139,6 +139,9 @@ function StudentDashboard() {
                 </p>
                 <p>
                   <strong>Time:</strong> {new Date(record.timestamp).toLocaleTimeString()}
+                </p>
+                <p className={`event-status ${record.events.status}`}>
+                  {record.events.status === 'finished' ? 'Finished' : 'On-going'}
                 </p>
                 <span className={`status-badge status-${record.status.toLowerCase().replace(' ', '-')}`}>
                   {record.status}

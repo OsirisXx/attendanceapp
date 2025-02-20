@@ -4,6 +4,7 @@ import { SessionContextProvider, useSessionContext } from '@supabase/auth-helper
 import supabase from './config/supabase';
 import Login from './components/Login';
 import StudentDashboard from './components/StudentDashboard';
+import SuperAdminDashboard from './components/SuperAdminDashboard';
 import AdminDashboard from './components/AdminDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import './App.css';
@@ -26,6 +27,14 @@ function AppContent() {
           element={
             <ProtectedRoute role="student">
               <StudentDashboard />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/superadmin" 
+          element={
+            <ProtectedRoute role="superadmin">
+              <SuperAdminDashboard />
             </ProtectedRoute>
           } 
         />

@@ -36,6 +36,7 @@ function AdminDashboard() {
     const { data, error } = await supabase
       .from('events')
       .select('*')
+      .order('status', { ascending: false })
       .order('date', { ascending: false });
 
     if (error) {
@@ -232,16 +233,20 @@ function AdminDashboard() {
           <h2>Events</h2>
           <div className="events-grid">
             {events.map((event) => (
-              <div key={event.id} className="event-card">
+              <div key={event.id} className={`event-card ${event.status === 'finished' ? 'event-finished' : ''}`}>
                 <h3>{event.title}</h3>
                 <p>{event.description}</p>
                 <p>
                   <strong>Date:</strong>{' '}
                   {new Date(event.date).toLocaleString()}
                 </p>
+                {event.status === 'finished' && (
+                  <div className="finished-banner">FINISHED</div>
+                )}
                 <div className="event-actions">
                   <button 
                     className="btn btn-scan"
+                    disabled={event.status === 'finished'}
                     onClick={() => {
                       setSelectedEvent(event);
                       setShowScanner(true);

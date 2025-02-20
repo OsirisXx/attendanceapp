@@ -7,39 +7,42 @@ const ProtectedRoute = ({ children, role }) => {
   const supabase = useSupabaseClient();
   const [userRole, setUserRole] = React.useState(null);
   const [isCheckingRole, setIsCheckingRole] = React.useState(true);
+  const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
     async function getUserRole() {
       if (session?.user?.id) {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('profiles')
           .select('role')
           .eq('id', session.user.id)
-          .throwOnError()
           .single();
 
-        if (data) {
+        if (error) {
+          console.error('Error fetching user role:', error);
+          setIsLoading(false);
+          return;
+        }
+
+        if (data && data.role) {
           setUserRole(data.role);
         }
-        setIsCheckingRole(false);
       }
       setIsCheckingRole(false);
+      setIsLoading(false);
     }
     getUserRole();
   }, [session, supabase]);
 
-  if (!session) {
-    return <Navigate to="/" replace />;
-  }
-
-  if (isCheckingRole) {
+  if (isLoading || isCheckingRole) {
     return <div>Loading...</div>;
   }
 
   console.log('Protected Route - Session:', session, 'Role:', userRole);
 
-  if (!session) return <Navigate to="/" replace />;
-  if (!userRole) return <div>Loading role...</div>;
+  if (!session || !userRole) {
+    return <Navigate to="/" replace />;
+  }
 
   if (role && role !== userRole) {
     return <Navigate to="/" replace />;
