@@ -37,7 +37,7 @@ function AdminDashboard() {
       .from('events')
       .select('*')
       .order('status', { ascending: false })
-      .order('date', { ascending: false });
+      .order('start_time', { ascending: false });
 
     if (error) {
       console.error('Error fetching events:', error);
@@ -53,18 +53,26 @@ function AdminDashboard() {
   const createEvent = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
+    const startTime = formData.get('start_time');
+    const endTime = formData.get('end_time');
+    
+    if (new Date(endTime) <= new Date(startTime)) {
+      alert('End time must be after start time');
+      return;
+    }
     
     const { error } = await supabase
       .from('events')
       .insert({
         title: formData.get('title'),
         description: formData.get('description'),
-        date: formData.get('date'),
+        start_time: startTime,
+        end_time: endTime,
         created_by: session.user.id
       });
 
     if (error) {
-      console.error('Error creating event:', error);
+      alert('Error creating event: ' + error.message);
     } else {
       fetchEvents();
       e.target.reset();
@@ -218,12 +226,20 @@ function AdminDashboard() {
             <input 
               name="description" 
               type="text" 
-              placeholder="Description" 
+              placeholder="Description"
+              required 
             />
             <input 
-              name="date" 
-              type="datetime-local" 
+              name="start_time" 
+              type="datetime-local"
               required 
+              placeholder="Start Time"
+            />
+            <input 
+              name="end_time" 
+              type="datetime-local"
+              required 
+              placeholder="End Time"
             />
             <button type="submit">Create Event</button>
           </form>
@@ -237,8 +253,8 @@ function AdminDashboard() {
                 <h3>{event.title}</h3>
                 <p>{event.description}</p>
                 <p>
-                  <strong>Date:</strong>{' '}
-                  {new Date(event.date).toLocaleString()}
+                  <strong>Start:</strong> {new Date(event.start_time).toLocaleString()}<br/>
+                  <strong>End:</strong> {new Date(event.end_time).toLocaleString()}
                 </p>
                 {event.status === 'finished' && (
                   <div className="finished-banner">FINISHED</div>

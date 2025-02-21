@@ -53,7 +53,7 @@ function StudentDashboard() {
       const { data, error } = await supabase
         .from('events')
         .select('*')
-        .order('date', { ascending: false });
+        .order('start_time', { ascending: false });
 
       if (error) {
         console.error('Error fetching events:', error);
@@ -92,7 +92,7 @@ function StudentDashboard() {
           events: event,
           attendeeCount: attendeeCounts[event.id] || 0,
           status: userAttendanceRecord ? userAttendanceRecord.status : 'Absent',
-          timestamp: attendanceRecord ? attendanceRecord.timestamp : event.date,
+          timestamp: attendanceRecord ? attendanceRecord.timestamp : event.start_time,
         };
       });
 
@@ -135,10 +135,21 @@ function StudentDashboard() {
                 <h3>{record.events.title}</h3>
                 <p className="event-description">{record.events.description}</p>
                 <p>
-                  <strong>Date:</strong> {new Date(record.events.date).toLocaleDateString()}
+                  <strong>Start:</strong> {new Date(record.events.start_time).toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                  })}
                 </p>
                 <p>
-                  <strong>Time:</strong> {new Date(record.timestamp).toLocaleTimeString()}
+                  <strong>End:</strong> {new Date(record.events.end_time).toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                  })}
+                </p>
+                <p>
+                  <strong>Attendance Time:</strong> {record.status !== 'Absent' ? new Date(record.timestamp).toLocaleString() : 'N/A'}
                 </p>
                 <p className={`event-status ${record.events.status}`}>
                   {record.events.status === 'finished' ? 'Finished' : 'On-going'}
