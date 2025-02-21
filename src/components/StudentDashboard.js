@@ -149,7 +149,7 @@ function StudentDashboard() {
                   })}
                 </p>
                 <p>
-                  <strong>Attendance Time:</strong> {record.status !== 'Absent' ? new Date(record.timestamp).toLocaleString() : 'N/A'}
+                  <strong>Date:</strong> {new Date(record.events.date).toLocaleDateString()}
                 </p>
                 <p className={`event-status ${record.events.status}`}>
                   {record.events.status === 'finished' ? 'Finished' : 'On-going'}

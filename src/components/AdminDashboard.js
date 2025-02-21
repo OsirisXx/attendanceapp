@@ -53,19 +53,24 @@ function AdminDashboard() {
   const createEvent = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
-    const startTime = formData.get('start_time');
-    const endTime = formData.get('end_time');
-    
+    // Format the datetime strings to keep local time
+    const startTime = new Date(formData.get('start_time')).toISOString().replace('Z', '');
+    const endTime = new Date(formData.get('end_time')).toISOString().replace('Z', '');
+   
     if (new Date(endTime) <= new Date(startTime)) {
       alert('End time must be after start time');
       return;
     }
+    
+    // Get the date in YYYY-MM-DD format
+    const eventDate = formData.get('date');
     
     const { error } = await supabase
       .from('events')
       .insert({
         title: formData.get('title'),
         description: formData.get('description'),
+        date: eventDate,
         start_time: startTime,
         end_time: endTime,
         created_by: session.user.id
@@ -230,6 +235,13 @@ function AdminDashboard() {
               required 
             />
             <input 
+              name="date" 
+              type="date"
+              required 
+              placeholder="Event Date"
+              defaultValue={new Date().toISOString().split('T')[0]}
+            />
+            <input 
               name="start_time" 
               type="datetime-local"
               required 
@@ -253,6 +265,7 @@ function AdminDashboard() {
                 <h3>{event.title}</h3>
                 <p>{event.description}</p>
                 <p>
+                  <strong>Date:</strong> {new Date(event.date).toLocaleDateString()}<br/>
                   <strong>Start:</strong> {new Date(event.start_time).toLocaleString()}<br/>
                   <strong>End:</strong> {new Date(event.end_time).toLocaleString()}
                 </p>
